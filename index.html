@@ -1,41 +1,106 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Student Map</title>
 
-    <!-- Leaflet's styles and code, loaded from the internet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-      body {
-        margin: 0;
-        font-family: sans-serif;
+      body { margin: 0; font-family: sans-serif; }
+      h1 { margin: 0; padding: 12px 16px 4px; font-size: 20px; }
+      #filters { padding: 8px 16px; }
+      button {
+        padding: 6px 12px;
+        margin: 2px;
+        border: 1px solid #888;
+        border-radius: 16px;
+        background: white;
+        cursor: pointer;
       }
-      h1 {
-        margin: 0;
-        padding: 12px 16px;
-        font-size: 20px;
-      }
-      #map {
-        height: 85vh;
-      }
+      button.active { background: #2b6cb0; color: white; border-color: #2b6cb0; }
+      #map { height: 80vh; }
     </style>
   </head>
 
   <body>
     <h1>Student Map</h1>
+
+    <div id="filters">
+      <span>Type:</span>
+      <button class="cat active" data-cat="all">All</button>
+      <button class="cat" data-cat="cafe">Cafe</button>
+      <button class="cat" data-cat="food">Food</button>
+      <button class="cat" data-cat="library">Library</button>
+
+      <span style="margin-left: 12px">Max price:</span>
+      <button class="price active" data-price="9999">Any</button>
+      <button class="price" data-price="150">Under ₹150</button>
+      <button class="price" data-price="300">Under ₹300</button>
+    </div>
+
     <div id="map"></div>
 
     <script>
-      // Create the map, centered on MEC, zoomed in to street level
+      // 1. The map
       var map = L.map("map").setView([10.0276, 76.3287], 15);
-
-      // Load the OpenStreetMap picture tiles underneath
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
+
+      // 2. The places (replace with real ones!)
+      var places = [
+        { name: "MEC Library", category: "library", price: 0, lat: 10.0276, lng: 76.3287 },
+        { name: "Example Cafe", category: "cafe", price: 250, lat: 10.0290, lng: 76.3300 },
+        { name: "Example Mess", category: "food", price: 120, lat: 10.0265, lng: 76.3270 }
+      ];
+
+      // 3. Remember what filters are chosen right now
+      var selectedCategory = "all";
+      var maxPrice = 9999;
+
+      // 4. A layer that holds all the markers, so we can clear and redraw them
+      var markerLayer = L.layerGroup().addTo(map);
+
+      function showPlaces() {
+        markerLayer.clearLayers(); // remove all current markers
+
+        places.forEach(function (place) {
+          var categoryOk = selectedCategory === "all" || place.category === selectedCategory;
+          var priceOk = place.price <= maxPrice;
+
+          if (categoryOk && priceOk) {
+            L.marker([place.lat, place.lng])
+              .bindPopup("<b>" + place.name + "</b><br>" + place.category + " · ₹" + place.price)
+              .addTo(markerLayer);
+          }
+        });
+      }
+
+      // 5. Make the buttons work
+      document.querySelectorAll("button.cat").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          selectedCategory = btn.dataset.cat;
+          document.querySelectorAll("button.cat").forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          showPlaces();
+        });
+      });
+
+      document.querySelectorAll("button.price").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          maxPrice = Number(btn.dataset.price);
+          document.querySelectorAll("button.price").forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          showPlaces();
+        });
+      });
+
+      // 6. Draw everything once at the start
+      showPlaces();
     </script>
   </body>
 </html>
