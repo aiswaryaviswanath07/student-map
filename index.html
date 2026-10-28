@@ -41,6 +41,13 @@
       <button class="price" data-price="300">Under ₹300</button>
     </div>
 
+    <div id="layers" style="padding: 0 16px 8px">
+  <span>Show:</span>
+  <label><input type="checkbox" data-layer="hospital" checked> Hospitals</label>
+  <label><input type="checkbox" data-layer="clinic" checked> Clinics</label>
+  <label><input type="checkbox" data-layer="college" checked> Colleges</label>
+  <label><input type="checkbox" data-layer="busstop" checked> Bus stops</label>
+</div>
     <div id="map"></div>
 
     <script>
@@ -100,6 +107,61 @@
       });
 
       // 6. Draw everything once at the start
+      // ---- Real places from OpenStreetMap (via Overpass) ----
+var overpassLayers = {
+  hospital: { label: "Hospital", color: "#e53e3e", filter: '["amenity"="hospital"]' },
+  clinic:   { label: "Clinic",   color: "#dd6b20", filter: '["amenity"~"clinic|doctors"]' },
+  college:  { label: "College",  color: "#6b46c1", filter: '["amenity"~"college|university"]' },
+  busstop:  { label: "Bus stop", color: "#2f855a", filter: '["highway"="bus_stop"]' }
+};
+
+function loadOsmLayer(key) {
+  var cfg = overpassLayers[key];
+  cfg.group = L.layerGroup().addTo(map);
+
+  // Ask Overpass: "give me all of these within 3 km of MEC"
+  var query = '[out:json][timeout:25];nwr' + cfg.filter +
+              '(around:3000,10.0276,76.3287);out center tags;';
+
+  fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    body: "data=" + encodeURIComponent(query)
+  })
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+      data.elements.forEach(function (el) {
+        // Points have lat/lon directly; buildings have a "center"
+        var lat = el.lat || (el.center && el.center.lat);
+        var lng = el.lon || (el.center && el.center.lon);
+        if (!lat || !lng) return;
+
+        var name = (el.tags && el.tags.name) || cfg.label;
+
+        // Build the popup safely as text
+        var box = document.createElement("div");
+        var title = document.createElement("b");
+        title.textContent = name;
+        box.appendChild(title);
+        box.appendChild(document.createElement("br"));
+        box.appendChild(document.createTextNode(cfg.label));
+
+        L.circleMarker([lat, lng], { radius: 6, color: cfg.color, fillOpacity: 0.8 })
+          .bindPopup(box)
+          .addTo(cfg.group);
+      });
+    })
+    .catch(function (error) { console.log("Overpass problem:", error); });
+}
+
+Object.keys(overpassLayers).forEach(loadOsmLayer);
+
+// Checkboxes show/hide each type
+document.querySelectorAll("#layers input").forEach(function (box) {
+  box.addEventListener("change", function () {
+    var group = overpassLayers[box.dataset.layer].group;
+    if (box.checked) { map.addLayer(group); } else { map.removeLayer(group); }
+  });
+});
       showPlaces();
     </script>
   </body>
